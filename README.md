@@ -17,6 +17,8 @@ RAG/
 │   └── example.txt          # サンプルデータファイル
 ├── main.py                  # メインプログラム
 ├── requirements.txt         # 必要なパッケージ
+├── test_claude.py          # Claude RAG システムのテスト
+├── claude_verification_log.md  # 動作確認ログ
 ├── README.md               # このファイル
 └── chroma_db/              # ChromaDB データ（実行時に作成）
 ```
