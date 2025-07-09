@@ -26,7 +26,8 @@ RAG/
 ### 1. 必要な環境
 
 - Python 3.8 以上
-- OpenAI API キー
+- Anthropic API キー（Claude を使用する場合、デフォルト）
+- OpenAI API キー（OpenAI を使用する場合）
 
 ### 2. 依存関係のインストール
 
@@ -34,16 +35,34 @@ RAG/
 pip install -r requirements.txt
 ```
 
-### 3. OpenAI API キーの設定
+### 3. API キーの設定
 
-以下のいずれかの方法で API キーを設定してください：
+#### Claude を使用する場合（デフォルト）
 
-#### 方法 1: 環境変数として設定
+以下のいずれかの方法で Anthropic API キーを設定してください：
+
+##### 方法 1: 環境変数として設定
+```bash
+export ANTHROPIC_API_KEY="your_anthropic_api_key_here"
+```
+
+##### 方法 2: .env ファイルを作成
+プロジェクトルートに `.env` ファイルを作成し、以下を記述：
+
+```
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```
+
+#### OpenAI を使用する場合
+
+`main.py` で provider を "openai" に変更し、以下のいずれかの方法で API キーを設定してください：
+
+##### 方法 1: 環境変数として設定
 ```bash
 export OPENAI_API_KEY="your_openai_api_key_here"
 ```
 
-#### 方法 2: .env ファイルを作成
+##### 方法 2: .env ファイルを作成
 プロジェクトルートに `.env` ファイルを作成し、以下を記述：
 
 ```
@@ -62,10 +81,10 @@ python main.py
 
 ### 実行時の流れ
 
-1. **システム初期化**: OpenAI API の設定と LangChain コンポーネントの初期化
+1. **システム初期化**: Claude API の設定と LangChain コンポーネントの初期化
 2. **ドキュメント読み込み**: `data/example.txt` からテキストデータを読み込み
 3. **テキスト分割**: 大きなテキストを小さなチャンクに分割
-4. **ベクトル化**: テキストチャンクをベクトル表現に変換
+4. **ベクトル化**: テキストチャンクをベクトル表現に変換（HuggingFace embeddings 使用）
 5. **インデックス化**: ChromaDB にベクトルを保存
 6. **QA チェーン作成**: 質問応答システムを構築
 7. **サンプル質問実行**: 事前定義された質問で動作確認
@@ -76,10 +95,14 @@ python main.py
 ### 使用技術
 
 - **LangChain**: LLM アプリケーションフレームワーク
-- **OpenAI GPT-3.5-turbo**: 質問応答用言語モデル
-- **OpenAI text-embedding-3-small**: テキスト埋め込み用モデル
+- **Claude 3 Haiku**: 質問応答用言語モデル（デフォルト）
+- **HuggingFace Sentence Transformers**: テキスト埋め込み用モデル（all-MiniLM-L6-v2）
 - **ChromaDB**: ベクトルデータベース
 - **RecursiveCharacterTextSplitter**: テキスト分割器
+
+#### 代替選択肢
+- **OpenAI GPT-3.5-turbo**: 質問応答用言語モデル（provider="openai" に変更時）
+- **OpenAI text-embedding-3-small**: テキスト埋め込み用モデル（provider="openai" に変更時）
 
 ### 主要なコンポーネント
 
@@ -123,6 +146,17 @@ retriever=self.vectorstore.as_retriever(search_kwargs={"k": 3})  # 取得する�
 ```
 
 #### モデル設定
+
+##### Claude を使用する場合（デフォルト）
+```python
+self.llm = ChatAnthropic(
+    model="claude-3-haiku-20240307",  # 使用するモデル
+    temperature=0,                    # 生成の創造性（0-1）
+    anthropic_api_key=self.anthropic_api_key
+)
+```
+
+##### OpenAI を使用する場合
 ```python
 self.llm = ChatOpenAI(
     model_name="gpt-3.5-turbo",  # 使用するモデル
@@ -136,6 +170,14 @@ self.llm = ChatOpenAI(
 ### よくある問題と解決方法
 
 #### 1. API キーエラー
+
+##### Claude を使用する場合
+```
+❌ ANTHROPIC_API_KEY が設定されていません
+```
+**解決方法**: Anthropic API キーを環境変数または .env ファイルに設定してください。
+
+##### OpenAI を使用する場合
 ```
 ❌ OPENAI_API_KEY が設定されていません
 ```
@@ -205,10 +247,21 @@ def load_pdf_documents(self, file_path: str) -> List[Document]:
     return loader.load()
 ```
 
+## 🧪 動作確認
+
+### Claude RAG システムのテスト
+```bash
+python test_claude.py
+```
+
+詳細な動作確認ログは [`claude_verification_log.md`](claude_verification_log.md) を参照してください。
+
 ## 📚 参考リンク
 
 - [LangChain 公式ドキュメント](https://python.langchain.com/)
-- [OpenAI API ドキュメント](https://platform.openai.com/docs)
+- [LangChain Anthropic 統合](https://python.langchain.com/docs/integrations/llms/anthropic)
+- [Anthropic Claude API ドキュメント](https://docs.anthropic.com/claude/docs)
+- [HuggingFace Sentence Transformers](https://huggingface.co/sentence-transformers)
 - [ChromaDB 公式サイト](https://www.trychroma.com/)
 - [RAG に関する論文](https://arxiv.org/abs/2005.11401)
 

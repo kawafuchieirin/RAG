@@ -11,10 +11,12 @@ from dotenv import load_dotenv
 # LangChain のインポート
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_chroma import Chroma
 from langchain.chains import RetrievalQA
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 # 環境変数の読み込み
 load_dotenv()
@@ -22,28 +24,54 @@ load_dotenv()
 class RAGSystem:
     """RAG システムのメインクラス"""
     
-    def __init__(self, openai_api_key: str = None):
+    def __init__(self, provider: str = "claude", openai_api_key: str = None, anthropic_api_key: str = None):
         """
         RAG システムの初期化
         
         Args:
+            provider: LLM プロバイダー ("claude" または "openai")
             openai_api_key: OpenAI API キー
+            anthropic_api_key: Anthropic API キー
         """
-        self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
-        if not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY が設定されていません")
-            
-        # OpenAI モデルの初期化
-        self.embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-small",
-            openai_api_key=self.openai_api_key
-        )
+        self.provider = provider.lower()
         
-        self.llm = ChatOpenAI(
-            model_name="gpt-3.5-turbo",
-            temperature=0,
-            openai_api_key=self.openai_api_key
-        )
+        if self.provider == "claude":
+            # Claude/Anthropic を使用
+            self.anthropic_api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
+            if not self.anthropic_api_key:
+                raise ValueError("ANTHROPIC_API_KEY が設定されていません")
+                
+            # HuggingFace embeddings を使用（Anthropic は埋め込みモデルを提供していないため）
+            self.embeddings = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={'normalize_embeddings': False}
+            )
+            
+            self.llm = ChatAnthropic(
+                model="claude-3-haiku-20240307",
+                temperature=0,
+                anthropic_api_key=self.anthropic_api_key
+            )
+            
+        elif self.provider == "openai":
+            # OpenAI を使用（従来の実装）
+            self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+            if not self.openai_api_key:
+                raise ValueError("OPENAI_API_KEY が設定されていません")
+                
+            self.embeddings = OpenAIEmbeddings(
+                model="text-embedding-3-small",
+                openai_api_key=self.openai_api_key
+            )
+            
+            self.llm = ChatOpenAI(
+                model_name="gpt-3.5-turbo",
+                temperature=0,
+                openai_api_key=self.openai_api_key
+            )
+        else:
+            raise ValueError(f"サポートされていないプロバイダーです: {provider}")
         
         # テキスト分割器の設定
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -174,18 +202,30 @@ def main():
     """メイン関数"""
     print("🚀 RAG システムを開始しています...")
     
+    # 使用するプロバイダーを指定（デフォルトは Claude）
+    provider = "claude"  # "claude" または "openai"
+    
     # API キーの確認
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        print("❌ OPENAI_API_KEY が設定されていません")
-        print("💡 以下の方法で API キーを設定してください：")
-        print("   1. .env ファイルに OPENAI_API_KEY=your_key_here を追加")
-        print("   2. 環境変数として export OPENAI_API_KEY=your_key_here")
-        return
+    if provider == "claude":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            print("❌ ANTHROPIC_API_KEY が設定されていません")
+            print("💡 以下の方法で API キーを設定してください：")
+            print("   1. .env ファイルに ANTHROPIC_API_KEY=your_key_here を追加")
+            print("   2. 環境変数として export ANTHROPIC_API_KEY=your_key_here")
+            return
+    else:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            print("❌ OPENAI_API_KEY が設定されていません")
+            print("💡 以下の方法で API キーを設定してください：")
+            print("   1. .env ファイルに OPENAI_API_KEY=your_key_here を追加")
+            print("   2. 環境変数として export OPENAI_API_KEY=your_key_here")
+            return
     
     try:
         # RAG システムの初期化
-        rag_system = RAGSystem()
+        rag_system = RAGSystem(provider=provider)
         
         # ドキュメントの読み込み
         print("📄 ドキュメントを読み込んでいます...")
